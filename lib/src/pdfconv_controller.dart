@@ -14,7 +14,7 @@ class PdfConvController {
 
   late OpenAIClient aiClient;
 
-  PdfConvController ({
+  PdfConvController({
     required this.baseUrl,
     required this.apiKey,
     required this.model,
@@ -35,10 +35,15 @@ class PdfConvController {
             content: ChatCompletionUserMessageContent.parts([
               ChatCompletionMessageContentPart.text(text: prompt),
               ChatCompletionMessageContentPart.image(
+                /*
                 imageUrl: ChatCompletionMessageImageUrl(
                   url: imageBase64,
                   detail: ChatCompletionMessageImageDetail.high,
-                ),
+                ),*/
+                imageUrl: ChatCompletionMessageImageUrl.fromJson({
+                  "url": "data:image/png;base64,$imageBase64",
+                  "detail": "high",
+                }),
               ),
             ]),
           ),
@@ -52,27 +57,35 @@ class PdfConvController {
     return await convB64ImageByAi(base64.encode(imageBytes));
   }
 
-  Future<void> convPdfByAi(String path, Function(String) onOutput, Function(String) ?onNote) async {
+  Future<void> convPdfByAi(
+    String path,
+    Function(String) onOutput,
+    Function(String)? onNote,
+  ) async {
     onNote?.call("初始化pdfrx");
     await pdfrxInitialize();
 
     onNote?.call("打开文件中");
     final doc = await PdfDocument.openFile(path);
     int i = 0;
+    int total = doc.pages.length;
 
     for (final page in doc.pages) {
       i += 1;
-      onNote?.call("第$i页: 渲染中");
-      final pageImage = await page.render();
+      onNote?.call("第$i/$total页: 渲染中");
+      final pageImage = await page.render(
+        fullWidth: page.width * 2,
+        fullHeight: page.height * 2,
+      );
 
-      onNote?.call("第$i页: 生成图片中");
+      onNote?.call("第$i/$total页: 生成图片中");
       final image = pageImage!.createImageNF();
       final imagePng = img.encodePng(image);
 
-      onNote?.call("第$i页: AI处理中");
+      onNote?.call("第$i/$total页: AI处理中");
       final curResult = await convImageByAi(imagePng);
       if (curResult != null) {
-        onOutput(curResult);
+        onOutput("$curResult\n");
       }
       pageImage.dispose();
     }
@@ -80,13 +93,17 @@ class PdfConvController {
     onNote?.call("处理完成:)");
   }
 
-  Future<void> convPdfByAiAndSave(String path, String outPath, Function(String) ?onNote) async {
-    String outFileName = pathlib.basename(path);
-    String outFilePath = pathlib.join(outPath, outFileName);
+  Future<void> convPdfByAiAndSave(
+    String path,
+    String outPath,
+    Function(String)? onNote,
+  ) async {
+    String outFileName = pathlib.basenameWithoutExtension(path);
+    String outFilePath = pathlib.join(outPath, "$outFileName.txt");
     File outFile = File(outFilePath);
 
     await convPdfByAi(path, (String content) {
-      outFile.writeAsString(content);
+      outFile.writeAsString(content, mode: FileMode.append);
     }, onNote);
   }
 }
