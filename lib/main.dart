@@ -250,7 +250,9 @@ class _MyHomePageState extends State<MyHomePage> {
               }
               int i = 0;
               for (final file in files) {
-                await pdfConv?.convPdfByAiAndSave(file, outPath!, (String note) {
+                await pdfConv?.convPdfByAiAndSave(file, outPath!, (
+                  String note,
+                ) {
                   setState(() {
                     filesNote[i] = note;
                   });

@@ -24,33 +24,41 @@ class PdfConvController {
   }
 
   Future<String?> convB64ImageByAi(String imageBase64) async {
-    final res = await aiClient.createChatCompletion(
-      request: CreateChatCompletionRequest(
-        model: ChatCompletionModel.modelId(model),
-        messages: [
-          ChatCompletionMessage.system(
-            content: 'You are a helpful OCR machine.',
-          ),
-          ChatCompletionMessage.user(
-            content: ChatCompletionUserMessageContent.parts([
-              ChatCompletionMessageContentPart.text(text: prompt),
-              ChatCompletionMessageContentPart.image(
-                /*
-                imageUrl: ChatCompletionMessageImageUrl(
-                  url: imageBase64,
-                  detail: ChatCompletionMessageImageDetail.high,
-                ),*/
-                imageUrl: ChatCompletionMessageImageUrl.fromJson({
-                  "url": "data:image/png;base64,$imageBase64",
-                  "detail": "high",
-                }),
-              ),
-            ]),
-          ),
-        ],
-      ),
-    );
-    return res.choices.first.message.content;
+    CreateChatCompletionResponse res;
+    try {
+      res = await aiClient.createChatCompletion(
+        request: CreateChatCompletionRequest(
+          model: ChatCompletionModel.modelId(model),
+          messages: [
+            ChatCompletionMessage.system(
+              content: 'You are a helpful OCR machine.',
+            ),
+            ChatCompletionMessage.user(
+              content: ChatCompletionUserMessageContent.parts([
+                ChatCompletionMessageContentPart.text(text: prompt),
+                ChatCompletionMessageContentPart.image(
+                  /*
+                  imageUrl: ChatCompletionMessageImageUrl(
+                    url: imageBase64,
+                    detail: ChatCompletionMessageImageDetail.high,
+                  ),
+                  */
+                  imageUrl: ChatCompletionMessageImageUrl.fromJson({
+                    "url": "data:image/png;base64,$imageBase64",
+                    "detail": "high",
+                  }),
+                ),
+              ]),
+            ),
+          ],
+        ),
+      );
+      return res.choices.first.message.content;
+    } catch (e) {
+      //print("Exp: $e");
+    }
+
+    return null;
   }
 
   Future<String?> convImageByAi(List<int> imageBytes) async {
@@ -86,6 +94,8 @@ class PdfConvController {
       final curResult = await convImageByAi(imagePng);
       if (curResult != null) {
         onOutput("$curResult\n");
+      } else {
+        onNote?.call("第$i/$total页: 处理失败");
       }
       pageImage.dispose();
     }
